@@ -8,6 +8,8 @@ import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.user.client.Window;
 import com.threerings.perf.core.PerfTest;
 
+import playn.core.Log.Collector;
+import playn.core.Log.Level;
 import playn.html.HtmlPlatform;
 
 public class PerfTestHtml implements EntryPoint {
@@ -22,6 +24,17 @@ public class PerfTestHtml implements EntryPoint {
 
 		plat.graphics().setSize(Window.getClientWidth(), Window.getClientHeight());
 		Window.scrollTo(0, 0);
+		
+		plat.log().setCollector(new Collector() {
+			public void logged(Level level, String msg, Throwable e) {
+				log(level.toString() + ": " + msg);
+				if (e != null) {
+					log (e.getMessage());
+				}
+			}
+			
+			native void log(String msg) /*-{ console.log(msg); }-*/;
+		});
 
 		new PerfTest(plat);
 		plat.start();

@@ -58,9 +58,23 @@ public abstract class AbstractTest extends tripleplay.game.ScreenStack.Screen
         game().update.connect(update);        
     }
     
+    int[] frameTimes = new int[60];
+    int frameTimeCounter = 0;
+    
     Listener<Clock> update = new Listener<Clock>(){
 		public void onEmit(Clock event) {
-			_hud.update();
+			frameTimes[frameTimeCounter] = event.dt;
+			frameTimeCounter = (frameTimeCounter + 1) % frameTimes.length;
+			if (frameTimeCounter == 0) {
+				int avg = 0;
+				for (int i = 0; i < frameTimes.length; ++i) {
+					avg += frameTimes[i];
+				}
+				
+				avg = avg / frameTimes.length;
+				
+				game().plat.log().debug("" + avg);
+			}
 		}};
     
     Keyboard.KeySlot keySlot = new Keyboard.KeySlot() {
