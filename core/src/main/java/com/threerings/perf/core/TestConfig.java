@@ -36,15 +36,15 @@ public abstract class TestConfig extends Group
     }
 
     protected void addIntSlider (String label, Slider slider, String minFmt) {
-        ValueLabel value = new ValueLabel(slider.value.map(Functions.INT_VALUE)).
-            setConstraint(Constraints.minSize(minFmt));
+        ValueLabel value = new ValueLabel(slider.value.map(Functions.INT_VALUE))
+            /*.setConstraint(Constraints.minSize(minFmt))*/;
         add(label, new Group(AxisLayout.horizontal()).add(slider, value));
     }
 
     protected void addStartButton () {
         Button start = new Button("Start");
         start.clicked().connect(new UnitSlot() { @Override public void onEmit () {
-            PerfTest.stack.push(create());
+            PerfTest.game.stack.push(create());
         }});
         add(TableLayout.colspan(start, 2));
     }

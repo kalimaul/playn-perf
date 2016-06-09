@@ -4,22 +4,23 @@
 
 package com.threerings.perf.core;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
-import playn.core.GroupLayer;
+import playn.core.Clock;
+import playn.core.Game;
 import playn.core.Image;
-import playn.core.ImmediateLayer;
-import playn.core.Layer;
 import playn.core.Surface;
-import playn.core.util.Clock;
-import static playn.core.PlayN.graphics;
-
+import playn.core.Tile;
+import playn.scene.GroupLayer;
+import playn.scene.ImageLayer;
+import playn.scene.Layer;
 import react.IntValue;
+import react.SignalView.Listener;
 import react.Value;
-
 import tripleplay.ui.CheckBox;
 import tripleplay.ui.Slider;
-import tripleplay.util.DestroyableList;
 import tripleplay.util.Hud;
 
 /**
@@ -34,8 +35,8 @@ public class BouncingQuads extends AbstractTest
             @Override protected AbstractTest create () {
                 return new BouncingQuads(_images.value.get().intValue(),
                                          _subImages.value.get().intValue(),
-                                         _sorted.checked.get(),
-                                         _useLayers.checked.get());
+                                         _sorted.selected().get(),
+                                         _useLayers.selected().get());
             }
 
             protected Slider _images = new Slider(1, 1, IMGS).setIncrement(1);
@@ -57,20 +58,23 @@ public class BouncingQuads extends AbstractTest
     @Override public void onTap () {
         // if any image is not ready, wait for it to load and try again
         for (Image img : _atlases) {
-            if (!img.isReady()) {
-                img.addCallback(new CB<Image>() { public void onSuccess (Image image) { onTap(); }});
+            if (!img.isLoaded()) {
+            	img.state.onSuccess(new Listener<Image>(){
+					public void onEmit(Image event) {
+						onTap();
+					}});
                 return;
             }
         }
 
-        Bodies.Init init = Bodies.random(width(), height(), 0.1f);
+        Bodies.Init init = Bodies.random(size().width(), size().height(), 0.1f);
         if (_useLayers) {
-            LayerBodies bods = new LayerBodies(BATCH, width(), height());
+            LayerBodies bods = new LayerBodies(BATCH, size().width(), size().height());
             bods.init(new LayerBodies.Viz() {
                 public Layer createViz (int index, float x, float y) {
                     int image = _rando.nextInt(_images);
-                    Image pea = getPea(image, _rando.nextInt(_subImages));
-                    Layer layer = graphics().createImageLayer(pea).
+                    Tile pea = getPea(image, _rando.nextInt(_subImages));
+                    Layer layer = new ImageLayer(pea).
                         setOrigin(pea.width()/2, pea.height()/2);
                     _layers[image].addAt(layer, x, y);
                     return layer;
@@ -79,9 +83,9 @@ public class BouncingQuads extends AbstractTest
             }, init);
             _bods.add(bods);
         } else {
-            final SurfaceBodies bods = new SurfaceBodies(BATCH, width(), height());
+            final SurfaceBodies bods = new SurfaceBodies(BATCH, size().width(), size().height());
             bods.init(new SurfaceBodies.Viz() {
-                public Image createViz (int index) {
+                public Tile createViz (int index) {
                     int image = _sorted ? (index / (BATCH/_images)) : _rando.nextInt(_images);
                     return getPea(image, _rando.nextInt(_subImages));
                 }
@@ -95,17 +99,19 @@ public class BouncingQuads extends AbstractTest
     @Override public void wasShown () {
         super.wasShown();
         onTap();
+        game().update.connect(update);
     }
-
-    @Override public void update (int delta) {
-        super.update(delta);
-        for (int ii = 0, ll = _bods.size(); ii < ll; ii++) _bods.get(ii).update(delta);
+    
+    @Override public void wasHidden() {
+    	super.wasHidden();
+    	game().update.disconnect(update);
     }
-
-    @Override public void paint (Clock clock) {
-        super.paint(clock);
-        for (int ii = 0, ll = _bods.size(); ii < ll; ii++) _bods.get(ii).paint(clock);
-    }
+    
+    Listener<Clock> update = new Listener<Clock>(){
+		public void onEmit(Clock event) {
+			for (int ii = 0, ll = _bods.size(); ii < ll; ii++) _bods.get(ii).update(event.dt);
+		}
+	};
 
     protected BouncingQuads (int images, int subImages, boolean sorted, boolean useLayers) {
         _images = images;
@@ -118,19 +124,20 @@ public class BouncingQuads extends AbstractTest
             // combine everything into the same (top-level) group layer
             _layers = new GroupLayer[_images];
             for (int ii = 0; ii < _images; ii++) {
-                if (sorted) layer.add(_layers[ii] = graphics().createGroupLayer());
+                if (sorted) layer.add(_layers[ii] = new GroupLayer());
                 else _layers[ii] = layer;
             }
         } else {
             _layers = new GroupLayer[0]; // unused
-            layer.add(graphics().createImmediateLayer(new ImmediateLayer.Renderer() {
-                public void render (Surface surf) {
-                    for (int ii = 0, ll = _bods.size(); ii < ll; ii++) {
+            layer.add(new Layer() {
+				@Override
+				protected void paintImpl(Surface surf) {
+					for (int ii = 0, ll = _bods.size(); ii < ll; ii++) {
                         SurfaceBodies bods = (SurfaceBodies)_bods.get(ii);
                         bods.paint(surf);
                     }
-                }
-            }));
+				}
+			});
         }
     }
 
@@ -143,11 +150,11 @@ public class BouncingQuads extends AbstractTest
         hud.add("Tap HUD to add bodies", false);
     }
 
-    protected Image getPea (int image, int subImage) {
-        Image pea = _peas[image][subImage];
+    protected Tile getPea (int image, int subImage) {
+        Tile pea = _peas[image][subImage];
         if (pea == null) {
             float size = _atlases[image].height();
-            pea = _atlases[image].subImage(size*subImage, 0, size, size);
+            pea = _atlases[image].region(size*subImage, 0, size, size).tile();
             // CanvasImage npea = graphics().createImage(size, size);
             // npea.canvas().drawImage(pea, 0, 0);
             // pea = npea;
@@ -166,11 +173,15 @@ public class BouncingQuads extends AbstractTest
         getImage("peas2.png"),
         getImage("peas3.png"),
     };
-    protected final Image[][] _peas = new Image[IMGS][SUBIMGS];
+    protected final Tile[][] _peas = new Tile[IMGS][SUBIMGS];
 
     protected final IntValue _count = new IntValue(0);
-    protected final DestroyableList<Bodies> _bods = DestroyableList.create();
+    protected final List<Bodies> _bods = new ArrayList<Bodies>();
 
     protected static final int BATCH = 300;
     protected static final int IMGS = 4, SUBIMGS = 4;
+	@Override
+	public Game game() {
+		return PerfTest.game;
+	}
 }

@@ -6,15 +6,12 @@ package com.threerings.perf.core;
 
 import java.util.Random;
 
-import playn.core.util.Clock;
-
-import tripleplay.util.Destroyable;
+import playn.core.Clock;
 
 /**
  * Manages a collection of bodies with position and velocity.
  */
 public abstract class Bodies
-    implements Destroyable
 {
     /** Handles initialization for a body. */
     public interface Init {

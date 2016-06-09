@@ -4,19 +4,19 @@
 
 package com.threerings.perf.java;
 
-import playn.core.PlayN;
-import playn.java.JavaPlatform;
+import playn.java.LWJGLPlatform;
 
 import com.threerings.perf.core.PerfTest;
 
 public class PerfTestJava
 {
     public static void main (String[] args) {
-        JavaPlatform.Config config = new JavaPlatform.Config();
-        config.width = 1024;
-        config.height = 768;
-        JavaPlatform pf = JavaPlatform.register(config);
-        pf.setTitle("PlayN Performance Tests");
-        PlayN.run(new PerfTest());
+        LWJGLPlatform.Config config = new LWJGLPlatform.Config();
+		config.width = 400;
+		config.height = 400;
+		// use config to customize the Java platform, if needed
+		LWJGLPlatform plat = new LWJGLPlatform(config);
+		new PerfTest(plat);
+		plat.start();
     }
 }

@@ -6,7 +6,8 @@ package com.threerings.perf.core;
 
 import playn.core.Image;
 import playn.core.Surface;
-import playn.core.util.Clock;
+import playn.core.Tile;
+import playn.core.Clock;
 
 /**
  * Displays a bunch of bodies via {@code Surface.drawImage} calls.
@@ -16,19 +17,19 @@ public class SurfaceBodies extends LayerBodies
     /** Creates the visualization for a body. */
     public interface Viz {
         /** Creates the visualization for the {@code index}th body. */
-        Image createViz (int index);
+        Tile createViz (int index);
     }
 
     /** All bodies use the same image for visualization. */
     public static Viz singleImageViz (final Image image) {
         return new Viz() {
-            public Image createViz (int index) { return image; }
+            public Tile createViz (int index) { return image.tile(); }
         };
     }
 
     public SurfaceBodies (int count, float width, float height) {
         super(count, width, height);
-        _images = new Image[count];
+        _images = new Tile[count];
     }
 
     /**
@@ -45,7 +46,7 @@ public class SurfaceBodies extends LayerBodies
      * Handles painting of the bodies (details depend on concrete implementation).
      */
     @Override public void paint (Clock clock) {
-        _alpha = clock.alpha();
+        _alpha = clock.alpha;
     }
 
     /**
@@ -59,13 +60,13 @@ public class SurfaceBodies extends LayerBodies
         for (int ii = 0, oo = 0, ll = count(); ii < ll; ii++, oo += FIELDS) {
             float cx = data[oo+CX] + alpha * data[oo+DX];
             float cy = data[oo+CY] + alpha * data[oo+DY];
-            Image image = _images[ii];
-            surf.drawImage(image, cx - image.width()/2, cy - image.height()/2);
+            Tile image = _images[ii];
+            surf.draw(image, cx - image.width()/2, cy - image.height()/2);
         }
     }
 
     /** The images that represent each body. */
-    protected final Image[] _images;
+    protected final Tile[] _images;
 
     /** The alpha for this frame (passed from {@link #paint(float)} to {@link #paint(Surface)}). */
     protected float _alpha;

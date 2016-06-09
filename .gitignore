@@ -4,3 +4,6 @@ ios/assets
 ios/bin
 ios/obj
 ios/playn-perf.userprefs
+.project
+.settings
+*/target/

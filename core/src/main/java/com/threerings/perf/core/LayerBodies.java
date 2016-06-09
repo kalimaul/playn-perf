@@ -4,11 +4,11 @@
 
 package com.threerings.perf.core;
 
-import playn.core.GroupLayer;
+import playn.scene.GroupLayer;
+import playn.scene.ImageLayer;
 import playn.core.Image;
-import playn.core.Layer;
-import playn.core.util.Clock;
-import static playn.core.PlayN.graphics;
+import playn.scene.Layer;
+import playn.core.Clock;
 
 /**
  * Displays a bunch of bodies as individual layers.
@@ -26,7 +26,7 @@ public class LayerBodies extends Bodies
     public static Viz singleImageViz (final Image image, final GroupLayer parent) {
         return new Viz() {
             public Layer createViz (int index, float x, float y) {
-                Layer layer = graphics().createImageLayer(image).
+                Layer layer = new ImageLayer(image).
                     setOrigin(image.width()/2, image.height()/2);
                 parent.addAt(layer, x, y);
                 return layer;
@@ -56,7 +56,7 @@ public class LayerBodies extends Bodies
      */
     public void destroy () {
         for (int ii = 0, ll = _layers.length; ii < ll; ii++) {
-            _layers[ii].destroy();
+            _layers[ii].close();
             _layers[ii] = null;
         }
     }
@@ -68,7 +68,7 @@ public class LayerBodies extends Bodies
     @Override public void paint (Clock clock) {
         if (_layers[0] == null) return; // not yet initialized
         float[] data = _data;
-        float alpha = clock.alpha();
+        float alpha = clock.alpha;
         for (int ii = 0, oo = 0, ll = count(); ii < ll; ii++, oo += FIELDS) {
             float cx = data[oo+CX] + alpha * data[oo+DX];
             float cy = data[oo+CY] + alpha * data[oo+DY];

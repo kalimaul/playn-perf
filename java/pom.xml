@@ -31,8 +31,8 @@
     </dependency>
 
     <dependency>
-      <groupId>com.googlecode.playn</groupId>
-      <artifactId>playn-java</artifactId>
+      <groupId>io.playn</groupId>
+      <artifactId>playn-java-lwjgl2</artifactId>
       <version>${playn.version}</version>
     </dependency>
   </dependencies>

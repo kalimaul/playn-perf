@@ -7,12 +7,13 @@ package com.threerings.perf.core;
 import java.util.Random;
 
 import pythagoras.d.MathUtil;
-
+import react.SignalView;
 import playn.core.Image;
-import playn.core.ImmediateLayer;
 import playn.core.Surface;
-import playn.core.util.Clock;
-import static playn.core.PlayN.graphics;
+import playn.core.Tile;
+import playn.scene.ClippedLayer;
+import playn.core.Clock;
+import playn.core.Game;
 
 import tripleplay.util.Hud;
 
@@ -44,28 +45,40 @@ public class ScrollingQuads extends AbstractTest
 
     @Override public void wasShown () {
         super.wasShown();
-        layer.add(graphics().createImmediateLayer(new ImmediateLayer.Renderer() {
-            public void render (Surface surf) {
-                renderTiles(surf, _px, _py);
-            }
-        }));
+        layer.add(new ClippedLayer(size().width(), size().height()) {
+			@Override
+			protected void paintClipped(Surface surf) {
+				renderTiles(surf, _px, _py);
+			}
+		});
+        
+        game().update.connect(update);
+        game().paint.connect(paint);
     }
-
-    @Override public void update (int delta) {
-        super.update(delta);
-        _cx = _nx;
-        _cy = _ny;
-        _nx = _cx + delta * _vx;
-        _ny = _cy + delta * _vy;
+    
+    @Override
+    public void wasHidden() {
+    	game().update.disconnect(update);
+    	game().paint.disconnect(paint);
     }
-
-    @Override public void paint (Clock clock) {
-        super.paint(clock);
-        float alpha = clock.alpha();
-        _px = _cx + (_nx - _cx) * alpha;
-        _py = _cy + (_ny - _cy) * alpha;
-    }
-
+    
+    SignalView.Listener<Clock> update = new SignalView.Listener<Clock>() {
+		public void onEmit(Clock event) {
+			_cx = _nx;
+	        _cy = _ny;
+	        _nx = _cx + event.dt * _vx;
+	        _ny = _cy + event.dt * _vy;
+		}
+	};
+	
+	SignalView.Listener<Clock> paint = new SignalView.Listener<Clock>() {
+		public void onEmit(Clock clock) {
+			float alpha = clock.alpha;
+	        _px = _cx + (_nx - _cx) * alpha;
+	        _py = _cy + (_ny - _cy) * alpha;
+		}
+	};
+    
     @Override protected void addHudBits (Hud hud) {
         hud.add("BouncingQuads:", true);
         hud.add("Tap HUD to change scroll dir", false);
@@ -73,8 +86,8 @@ public class ScrollingQuads extends AbstractTest
 
     protected ScrollingQuads () {
         // create our tile grid
-        _cols = MathUtil.iceil(width() / SIZE);
-        _rows = MathUtil.iceil(height() / SIZE);
+        _cols = MathUtil.iceil(size().width() / SIZE);
+        _rows = MathUtil.iceil(size().height() / SIZE);
         _grid = new int[_cols*_rows];
 
         // TODO: configure a random rotation?
@@ -93,18 +106,25 @@ public class ScrollingQuads extends AbstractTest
             x = ox;
             for (int cc = 0, llc = _cols; cc <= llc; cc++) {
                 int ec = (((sc + cc) % _cols) + _cols) % _cols;
-                surf.drawImage(getTile(_grid[er*_cols+ec]), x, y);
+                Tile tile = getTile(_grid[er*_cols+ec]);
+                if (tile != null) {
+                	surf.draw(tile, x, y);
+                }
                 x += SIZE;
             }
             y += SIZE;
         }
     }
 
-    protected Image getTile (int index) {
-        Image tile = _tiles[index];
+    protected Tile getTile (int index) {
+        Tile tile = _tiles[index];
+        if (!_atlas.isLoaded()) {
+        	return null;
+        }
+        
         if (tile == null) {
             int row = index / COLS, col = index % COLS;
-            tile = _atlas.subImage(col*SIZE, row*SIZE, SIZE, SIZE);
+            tile = _atlas.region(col*SIZE, row*SIZE, SIZE, SIZE).tile();
             _tiles[index] = tile;
         }
         return tile;
@@ -117,8 +137,12 @@ public class ScrollingQuads extends AbstractTest
     protected float _cx, _cy, _nx, _ny, _vx, _vy, _px, _py;
 
     protected final Image _atlas = getImage("tiles.png");
-    protected final Image[] _tiles = new Image[TILES];
+    protected final Tile[] _tiles = new Tile[TILES];
 
     protected static final int COLS = 5, TILES = COLS*4-1;
     protected static final float SIZE = 64;
+	@Override
+	public Game game() {
+		return PerfTest.game;
+	}
 }

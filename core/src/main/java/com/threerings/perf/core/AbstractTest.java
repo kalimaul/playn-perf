@@ -4,20 +4,20 @@
 
 package com.threerings.perf.core;
 
+import playn.core.Clock;
 import playn.core.Image;
 import playn.core.Keyboard;
-import playn.core.Mouse;
-import playn.core.Pointer;
-import playn.core.util.Clock;
-import static playn.core.PlayN.*;
-
-import tripleplay.game.Screen;
+import playn.core.Keyboard.KeyEvent;
+import playn.core.Mouse.ButtonEvent;
+import playn.scene.Mouse.Interaction;
+import react.SignalView.Listener;
+import react.Value;
 import tripleplay.util.Hud;
 
 /**
  * The base class for a performance test.
  */
-public abstract class AbstractTest extends Screen
+public abstract class AbstractTest extends tripleplay.game.ScreenStack.Screen
 {
     /** Called when the user taps/clicks once. */
     public void onTap () {
@@ -30,67 +30,74 @@ public abstract class AbstractTest extends Screen
         layer.add(_hud.layer);
 
         // wire up listeners for tapping and going back to the menu
-        _hud.layer.addListener(new Mouse.LayerAdapter() {
-            @Override public void onMouseDown(Mouse.ButtonEvent event) {
-                switch (event.button()) {
-                case Mouse.BUTTON_RIGHT: pop(); break;
+        _hud.layer.events().connect(new playn.scene.Mouse.Listener() {
+        	public void onButton (ButtonEvent event, Interaction iact) {
+        		switch (event.button) {
+                case LEFT: pop(); break;
                 default: break;
                 }
+        	}
+		});
+
+        _hud.layer.events().connect(new playn.scene.Pointer.Listener() {
+        	@Override
+        	public void onStart(playn.scene.Pointer.Interaction event) {
+                _tapStart = System.currentTimeMillis();
             }
-        });
-        _hud.layer.addListener(new Pointer.Adapter() {
-            @Override public void onPointerStart(Pointer.Event event) {
-                _tapStart = currentTime();
-            }
-            @Override public void onPointerEnd(Pointer.Event event) {
-                double duration = currentTime() - _tapStart;
+            @Override public void onEnd(playn.scene.Pointer.Interaction event) {
+                double duration = System.currentTimeMillis() - _tapStart;
                 if (duration > 1000) pop();
                 else onTap();
             }
-            @Override public void onPointerCancel(Pointer.Event event) {
+            @Override public void onCancel(playn.scene.Pointer.Interaction event) {
             }
             protected double _tapStart;
         });
-        keyboard().setListener(new Keyboard.Adapter() {
-            @Override public void onKeyDown(Keyboard.Event event) {
-                switch (event.key()) {
+        
+        game().plat.input().keyboardEvents.connect(keySlot);
+        game().update.connect(update);        
+    }
+    
+    Listener<Clock> update = new Listener<Clock>(){
+		public void onEmit(Clock event) {
+			_hud.update();
+		}};
+    
+    Keyboard.KeySlot keySlot = new Keyboard.KeySlot() {
+		@Override
+		public void onEmit(KeyEvent event) {
+			if (event.down) {
+				switch (event.key) {
                 case ESCAPE:
                 case BACK: pop(); break;
                 case SPACE: onTap(); break;
                 case H: _hud.layer.setVisible(_hudActive = !_hudActive); break;
                 default: break;
                 }
-            }
-        });
-    }
+			}
+		}
+	};
 
     @Override public void wasHidden () {
         super.wasHidden();
-        keyboard().setListener(null);
-    }
-
-    @Override public void update (int delta) {
-        super.update(delta);
-        if (_hudActive) _hud.update(delta);
-    }
-
-    @Override public void paint (Clock clock) {
-        super.paint(clock);
-        if (_hudActive) _hud.paint();
+        game().plat.input().keyboardEvents.disconnect(keySlot);
+        game().update.disconnect(update);
     }
 
     protected void pop () {
-        PerfTest.stack.remove(this);
+        PerfTest.game.stack.remove(this);
     }
 
     protected Image getImage (String path) {
-        return assets().getImage("images/" + path);
+        return PerfTest.game.plat.assets().getImage("images/" + path);
     }
 
     /** Override this and add UI elements to the HUD as needed. */
     protected void addHudBits (Hud hud) {
     }
+    
+    Value<Integer> frameTime = new Value<Integer>(0);
 
-    private final Hud.Stock _hud = new Hud.Stock();
+    private final Hud.Stock _hud = new Hud.Stock(PerfTest.game);
     private boolean _hudActive = true;
 }
